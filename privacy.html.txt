@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Política de Privacidad - Palafrugell Accessible</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; padding: 20px; max-width: 800px; margin: auto; color: #333; }
+        h1 { color: #4caf50; }
+        h2 { color: #2e7d32; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Política de Privacidad - Palafrugell Accessible</h1>
+    <p><strong>Última actualización:</strong> Junio 2026</p>
+    <p>Esta aplicación ha sido desarrollada como un proyecto independiente, educativo y de utilidad pública para la localidad de Palafrugell.</p>
+    
+    <h2>1. Recopilación y Uso de Datos</h2>
+    <p>Nuestra aplicación <strong>NO recopila, NI almacena, NI transmite ningún tipo de información de carácter personal</strong> de los usuarios (como nombres, correos electrónicos, números de teléfono o identificadores del dispositivo).</p>
+    
+    <h2>2. Permisos de Ubicación (GPS)</h2>
+    <p>La aplicación utiliza la función de geolocalización de tu dispositivo móvil única y exclusivamente para mostrar tu posición actual sobre el mapa interactivo cuando pulsas el botón de ubicación. Esta información se procesa en tiempo real y de forma local en tu navegador web. **Bajo ningún concepto estos datos de localización se guardan en servidores externos ni se comparten con terceras empresas.**</p>
+    
+    <h2>3. Cookies y Rastreo</h2>
+    <p>Este sitio web es 100% limpio y seguro. No utiliza cookies de seguimiento, no incluye publicidad comercial ni integra herramientas de analítica (como Google Analytics) que puedan rastrear tu comportamiento en internet.</p>
+
+    <h2>4. Contacto</h2>
+    <p>Para cualquier duda o consulta sobre este proyecto, puedes contactar con el desarrollador a través de nuestro repositorio oficial de GitHub.</p>
+</body>
+</html>
