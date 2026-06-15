@@ -1,9 +1,9 @@
 {
   "short_name": "PalafrugellAcc",
-  "name": "Palafrugell Accessible",
+  "name": "Palafrugell Accesible",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/7322/7322268.png",
+      "src": "logo app.png",
       "type": "image/png",
       "sizes": "512x512"
     }
