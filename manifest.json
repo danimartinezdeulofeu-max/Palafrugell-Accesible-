@@ -1,0 +1,16 @@
+{
+  "short_name": "PalafrugellAcc",
+  "name": "Palafrugell Accessible",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/7322/7322268.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "./index.html",
+  "background_color": "#f4f7f6",
+  "theme_color": "#4caf50",
+  "display": "standalone",
+  "orientation": "portrait"
+}
