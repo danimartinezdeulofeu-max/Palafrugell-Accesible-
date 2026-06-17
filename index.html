@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <link rel="icon" href="ruta/de/tu/Logo app.png">
+    <meta charset="UTF-8">
+    <link rel="manifest" href="manifest.json">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Palafrugell Accessible</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+    
+    <style>
+        #mapa {
+            height: 400px;
+            width: 100%;
+            border-radius: 1.5rem;
+            border: 3px solid #cbd5e1; /* Requadre ben marcat */
+        }
+        .leaflet-routing-container {
+            display: none !important;
+        }
+        /* Textos grans per als ròtuls del mapa */
+        .leaflet-popup-content {
+            font-size: 16px !important;
+            font-weight: bold !important;
+        }
+    </style>
+</head>
+<body class="bg-amber-50/40 text-slate-900 font-sans min-h-screen antialiased p-3 sm:p-6">
+
+    <header class="max-w-2xl mx-auto bg-white border-4 border-emerald-600 p-4 rounded-3xl shadow-md text-center mb-4">
+        <h1 id="txtTituloPrincipal" class="text-2xl sm:text-3xl font-black text-emerald-700">♿ Palafrugell Accessible</h1>
+        <p class="text-sm font-bold text-slate-500 mt-1 uppercase tracking-wide">Rutes fàcils per a gent gran i cadira de rodes</p>
+        
+        <div class="mt-3 flex items-center justify-center gap-2">
+            <span class="text-xs font-bold text-slate-500">Idioma:</span>
+            <select id="selectorIdioma" onchange="cambiarIdioma()" class="bg-slate-100 border-2 border-slate-400 text-slate-900 font-bold text-sm py-1.5 px-4 rounded-xl focus:outline-none cursor-pointer">
+                <option value="ca" selected>Català</option>
+                <option value="es">Español</option>
+                <option value="en">English</option>
+                <option value="fr">Français</option>
+                <option value="de">Deutsch</option>
+                <option value="it">Italiano</option>
+                <option value="pt">Português</option>
+                <option value="nl">Nederlands</option>
+            </select>
+        </div>
+    </header>
+
+    <section class="max-w-2xl mx-auto bg-emerald-50 border-2 border-emerald-200 p-4 rounded-3xl mb-4">
+        <h2 id="txtGuiaRapida" class="text-sm font-black text-emerald-800 uppercase mb-2 flex items-center gap-2">💡 Com funciona aquesta aplicació?</h2>
+        <ul class="text-xs sm:text-sm font-bold text-slate-700 space-y-1.5">
+            <li>1️⃣ Escriu el lloc on vols anar a la barra blanca de baix.</li>
+            <li>2️⃣ Prem el botó verd gran <span class="text-emerald-600">"CERCAR RUTA SEGURA"</span>.</li>
+            <li>3️⃣ El mapa et guiarà i et dirà si els carrers són plans i segurs.</li>
+        </ul>
+    </section>
+
+    <main class="max-w-2xl mx-auto flex flex-col gap-4">
+        
+        <div class="bg-slate-200 p-1.5 rounded-2xl flex gap-2 shadow-inner">
+            <button id="btnTabNavegacion" class="w-1/2 py-3.5 text-base font-black rounded-xl transition duration-200 text-center" onclick="cambiarPestana('navegacion')">🗺️ Veure Mapa</button>
+            <button id="btnTabColaborar" class="w-1/2 py-3.5 text-base font-black rounded-xl transition duration-200 text-center" onclick="cambiarPestana('colaborar')">⚠️ Avisar d'un perill</button>
+        </div>
+
+        <div id="pestanaNavegacion" class="space-y-4" style="display: block;">
+            
+            <div class="bg-white border-4 border-slate-300 p-5 rounded-3xl shadow-sm space-y-3">
+                <label for="buscadorDestino" class="text-base font-black text-slate-800 block" id="lblBuscarDestino">On vols anar avui?</label>
+                <input type="text" id="buscadorDestino" placeholder="Ex: Mercadona, Plaça Nova, Carrer Girona..." class="w-full bg-slate-50 text-slate-900 font-bold text-base px-4 py-3.5 rounded-2xl border-2 border-slate-400 focus:bg-white focus:border-emerald-600 focus:outline-none placeholder-slate-400">
+                
+                <button id="btnCalcularRuta" onclick="buscarYCalcular()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black text-lg py-4 rounded-2xl transition shadow-md active:scale-[0.99]">
+                    🔍 CERCAR RUTA SEGURA
+                </button>
+            </div>
+
+            <div class="relative overflow-hidden rounded-3xl bg-white shadow-md">
+                <div id="mapa"></div>
+            </div>
+
+            <div id="tarjetaRuta" class="bg-white border-4 border-emerald-600 p-5 rounded-3xl shadow-md space-y-4" style="display: none;">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
+                    <h3 id="tituloDestino" class="font-black text-xl text-slate-900">📍 Destí</h3>
+                    
+                    <div id="contenedorSeguridad" class="bg-slate-100 border-2 border-slate-300 px-4 py-2 rounded-2xl text-center flex items-center justify-between gap-4 w-full sm:w-auto">
+                        <span id="lblSeguridad" class="text-xs font-black text-slate-500 uppercase">Seguretat del camí:</span>
+                        <span id="valorSeguridad" class="font-black text-2xl">100%</span>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-base">
+                    <div class="bg-slate-100 p-3 rounded-2xl border border-slate-300">
+                        <p class="text-slate-500 text-xs font-bold uppercase mb-0.5" id="lblDistancia">Distància total:</p>
+                        <p class="font-black text-slate-900 text-lg" id="distanciaMetros">0 m</p>
+                    </div>
+                    <div class="bg-slate-100 p-3 rounded-2xl border border-slate-300">
+                        <p class="text-slate-500 text-xs font-bold uppercase mb-0.5" id="lblTiempo">Temps caminant a poc a poc:</p>
+                        <p class="font-black text-slate-900 text-lg" id="tiempoMinutos">0 min</p>
+                    </div>
+                </div>
+
+                <div class="bg-slate-50 p-4 rounded-2xl border-2 border-slate-200 space-y-1">
+                    <p class="text-slate-500 text-xs font-bold uppercase" id="lblIndicaciones">Estat d'aquest camí:</p>
+                    <div id="indicaciones" class="text-slate-800 font-bold text-sm leading-relaxed">Ruta optimitzada.</div>
+                </div>
+            </div>
+        </div>
+
+      <div id="pestanaColaborar" class="space-y-4" style="display: none;">
+    <main class="max-w-2xl mx-auto">
+        <form action="https://formspree.io/f/xkoaejkz" method="POST" class="bg-white p-6 rounded-3xl shadow-md border-2 border-orange-500">
+            <h3 class="font-black text-orange-700 mb-4">⚠️ Has trobat algun obstacle o perill?</h3>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="text-sm font-black text-slate-700">Nom del Carrer:</label>
+                    <input type="text" name="calle" placeholder="Ex: Carrer de la Tarongeta" class="w-full p-3 border-2 rounded-2xl" required>
+                </div>
+                
+                <div>
+                    <label class="text-sm font-black text-slate-700">Quin problema hi ha?</label>
+                    <select name="problema" class="w-full p-3 border-2 rounded-2xl">
+                        <option value="obras">🚧 Carrer en obres</option>
+                        <option value="bache">🕳️ Forat al terra</option>
+                        <option value="pendiente">📈 Pendent perillós</option>
+                        <option value="estrecho">🚶 Vorera massa estreta</option>
+                        <option value="otro"> Altre problema</option>
+                        <option value="estat"> Estat del carrer</option>
+                    </select>
+                </div>
+
+                <label class="flex items-center text-sm font-bold text-slate-700 cursor-pointer mt-4">
+    <input type="checkbox" id="checkPrivacidad" class="mr-2 w-5 h-5" onchange="toggleBoton()">
+    Accepto la Política de Privacitat.
+</label>
+
+<button type="submit" id="btnEnviar" disabled 
+        class="w-full bg-gray-400 text-white font-black py-4 rounded-2xl cursor-not-allowed transition mt-4">
+    ENVIAR AVISO
+</button>
+            </div>
+            
+            
+            <p class="text-[10px] text-slate-400 mt-4 italic text-center">
+                Dades protegides per la normativa de protecció de dades.
+            </p>
+        </form>
+                </div>
+            </div>
+
+            <div id="panelAdmin" class="bg-amber-100 border-4 border-amber-500 p-4 rounded-3xl shadow-sm space-y-1" style="display: none;">
+                <h4 id="txtPanelAdmin" class="text-xs font-black text-amber-800 uppercase">📋 El teu avís s'ha guardat correctament:</h4>
+                <div id="datosAlerta" class="text-slate-800 text-sm font-bold leading-normal">Cap alerta enviada encara.</div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="text-center text-xs font-bold text-slate-400 mt-8 pb-4">
+        &copy; 2026 Palafrugell Accessible · Aplicació Fàcil per a Tothom
+    </footer>
+
+<script>
+var mapa;
+var marcadorOrigen;
+var controlEnrutador;
+
+var origenLat = 41.9176; 
+var origenLon = 3.1645; 
+
+var traducciones = {
+    "es": {
+        "tituloPrincipal": "♿ Palafrugell Accesible",
+        "txtGuiaRapida": "💡 ¿Cómo funciona esta aplicación?",
+        "tabNavegacion": "🗺️ Ver Mapa",
+        "tabColaborar": "⚠️ Avisar de un peligro",
+        "lblBuscarDestino": "¿A dónde quieres ir hoy?",
+        "placeholderBuscar": "Ej: Mercadona, Plaça Nova, Carrer Girona...",
+        "btnCalcularRuta": "🔍 BUSCAR RUTA SEGURA",
+        "lblDistancia": "Distancia total:",
+        "lblTiempo": "Tiempo caminando despacio:",
+        "lblSeguridad": "Seguridad del camino:",
+        "lblIndicaciones": "Estado de este camino:",
+        "rutaEstandar": "Ruta a pie calculada siguiendo aceras y zonas tranquilas.",
+        "tituloAlerta": "⚠️ ¿Has encontrado un obstáculo en la calle? Avisa aquí",
+        "lblCalleAlerta": "Nombre de la Calle:",
+        "placeholderCalle": "Ej: Carrer de la Tarongeta",
+        "lblTipoProblema": "¿Qué problema hay?",
+        "optObras": "🚧 Calle en obras / Acera cortada",
+        "optBache": "🕳️ Agujero en el suelo o baldosas rotas",
+        "optPendiente": "📈 Subida o bajada muy empinada",
+        "optEstrecho": "🚶 Acera demasiado estrecha",
+        "btnEnviarAlerta": "📢 ENVIAR AVISO A LA GENTE",
+        "txtPanelAdmin": "📋 Tu aviso se ha guardado correctamente:",
+        "alertaOk": "¡Aviso enviado! Gracias por ayudar a los demás vecinos.",
+        "adminMsg": "La calle ",
+        "adminMsg2": " tiene un aviso activo por: ",
+        "adminMsg3": ". Afectará a los cálculos actuales.",
+        "alertVacio": "Por favor, escribe un destino.",
+        "alertNoEncontrado": "No se ha encontrado ese sitio en Palafrugell. Inténtalo de nuevo.",
+        "alertEscribeCalle": "Por favor, escribe el nombre de la calle."
+    },
+    "ca": {
+        "tituloPrincipal": "♿ Palafrugell Accessible",
+        "txtGuiaRapida": "💡 Com funciona aquesta aplicació?",
+        "tabNavegacion": "🗺️ Veure Mapa",
+        "tabColaborar": "⚠️ Avisar d'un perill",
+        "lblBuscarDestino": "On vols anar avui?",
+        "placeholderBuscar": "Ex: Mercadona, Plaça Nova, Carrer Girona...",
+        "btnCalcularRuta": "🔍 CERCAR RUTA SEGURA",
+        "lblDistancia": "Distància total:",
+        "lblTiempo": "Temps caminant a poc a poc:",
+        "lblSeguridad": "Seguretat del camí:",
+        "lblIndicaciones": "Estat d'aquest camí:",
+        "rutaEstandar": "Ruta a peu calculada seguint voreres i zones tranquil·les.",
+        "tituloAlerta": "⚠️ Has trobat algun obstacle o perill al carrer? Avisa aquí",
+        "lblCalleAlerta": "Nom del Carrer:",
+        "placeholderCalle": "Ex: Carrer de la Tarongeta",
+        "lblTipoProblema": "Quin problema hi ha?",
+        "optObras": "🚧 Carrer en obres / Vorera tallada",
+        "optBache": "🕳️ Forat al terra o rajoles trencades",
+        "optPendiente": "📈 Pujada o baixada molt empinada",
+        "optEstrecho": "🚶 Vorera massa estreta",
+        "btnEnviarAlerta": "📢 ENVIAR AVIS A LA GENT",
+        "txtPanelAdmin": "📋 El teu avís s'ha guardat correctament:",
+        "alertaOk": "Avís enviat! Gràcies per ajudar els altres veïns.",
+        "adminMsg": "El carrer ",
+        "adminMsg2": " té un avís actiu per: ",
+        "adminMsg3": ". Afectarà els càlculs actuals.",
+        "alertVacio": "Por favor, introduce un destino.",
+        "alertNoEncontrado": "No s'ha trobat aquest lloc a Palafrugell. Torna-ho a intentar.",
+        "alertEscribeCalle": "Escriu el carrer."
+    },
+"en": {
+        "tituloPrincipal": "♿ Accessible Palafrugell",
+        "txtGuiaRapida": "💡 How does this app work?",
+        "tabNavegacion": "🗺️ View Map",
+        "tabColaborar": "⚠️ Report a hazard",
+        "lblBuscarDestino": "Where do you want to go today?",
+        "placeholderBuscar": "Ex: Mercadona, Plaça Nova, Girona Street...",
+        "btnCalcularRuta": "🔍 FIND SAFE ROUTE",
+        "lblDistancia": "Total distance:",
+        "lblTiempo": "Slow walking time:",
+        "lblSeguridad": "Path safety:",
+        "lblIndicaciones": "Path condition:",
+        "rutaEstandar": "Walking route calculated using sidewalks and quiet zones.",
+        "tituloAlerta": "⚠️ Found a street obstacle? Report it here",
+        "lblCalleAlerta": "Street Name:",
+        "placeholderCalle": "Ex: Carrer de la Tarongeta",
+        "lblTipoProblema": "What is the problem?",
+        "optObras": "🚧 Roadworks / Blocked sidewalk",
+        "optBache": "🕳️ Pothole or broken tiles",
+        "optPendiente": "📈 Very steep incline or decline",
+        "optEstrecho": "🚶 Sidewalk too narrow",
+        "btnEnviarAlerta": "📢 SEND REPORT",
+        "txtPanelAdmin": "📋 Your report was saved successfully:",
+        "alertaOk": "Report sent! Thank you for helping other neighbors.",
+        "adminMsg": "Street ",
+        "adminMsg2": " has an active warning for: ",
+        "adminMsg3": ". It will affect current calculations.",
+        "alertVacio": "Please, enter a destination.",
+        "alertNoEncontrado": "That place was not found in Palafrugell.",
+        "alertEscribeCalle": "Please, enter the street name."
+    },
+    "fr": {
+        "tituloPrincipal": "♿ Palafrugell Accessible",
+        "txtGuiaRapida": "💡 Comment fonctionne cette application ?",
+        "tabNavegacion": "🗺️ Voir la carte",
+        "tabColaborar": "⚠️ Signaler un danger",
+        "lblBuscarDestino": "Où voulez-vous aller aujourd'hui ?",
+        "placeholderBuscar": "Ex : Mercadona, Plaça Nova, Carrer Girona...",
+        "btnCalcularRuta": "🔍 TROUVER UN ITINÉRAIRE SÛR",
+        "lblDistancia": "Distance totale :",
+        "lblTiempo": "Temps de marche lente :",
+        "lblSeguridad": "Sécurité du chemin :",
+        "lblIndicaciones": "État du chemin :",
+        "rutaEstandar": "Itinéraire à pied calculé en suivant les trottoirs et les zones calmes.",
+        "tituloAlerta": "⚠️ Vous avez trouvé un obstacle dans la rue ? Signalez-le ici",
+        "lblCalleAlerta": "Nom de la rue :",
+        "placeholderCalle": "Ex : Carrer de la Tarongeta",
+        "lblTipoProblema": "Quel est le problème ?",
+        "optObras": "🚧 Travaux / Trottoir bloqué",
+        "optBache": "🕳️ Trou dans le sol ou dalles cassées",
+        "optPendiente": "📈 Pente très raide",
+        "optEstrecho": "🚶 Trottoir trop étroit",
+        "btnEnviarAlerta": "📢 ENVOYER LE SIGNALEMENT",
+        "txtPanelAdmin": "📋 Votre signalement a été enregistré avec succès :",
+        "alertaOk": "Signalement envoyé ! Merci d'aider les autres voisins.",
+        "adminMsg": "La rue ",
+        "adminMsg2": " a une alerte active pour : ",
+        "adminMsg3": ". Cela affectera les calculs actuels.",
+        "alertVacio": "Veuillez saisir une destination.",
+        "alertNoEncontrado": "Ce lieu n'a pas été trouvé à Palafrugell.",
+        "alertEscribeCalle": "Veuillez saisir le nom de la rue."
+    },
+    "de": {
+        "tituloPrincipal": "♿ Barrierefreies Palafrugell",
+        "txtGuiaRapida": "💡 Wie funktioniert diese App?",
+        "tabNavegacion": "🗺️ Karte anzeigen",
+        "tabColaborar": "⚠️ Gefahr melden",
+        "lblBuscarDestino": "Wohin möchten Sie heute gehen?",
+        "placeholderBuscar": "Bsp: Mercadona, Plaça Nova, Carrer Girona...",
+        "btnCalcularRuta": "🔍 SICHERE ROUTE FINDEN",
+        "lblDistancia": "Gesamtentfernung:",
+        "lblTiempo": "Zeit bei langsamem Gehen:",
+        "lblSeguridad": "Wegsicherheit:",
+        "lblIndicaciones": "Zustand des Weges:",
+        "rutaEstandar": "Fußgängerroute unter Berücksichtigung von Gehwegen und ruhigen Zonen.",
+        "tituloAlerta": "⚠️ Hindernis auf der Straße gefunden? Hier melden",
+        "lblCalleAlerta": "Straßenname:",
+        "placeholderCalle": "Bsp: Carrer de la Tarongeta",
+        "lblTipoProblema": "Was ist das Problem?",
+        "optObras": "🚧 Bauarbeiten / Gehweg gesperrt",
+        "optBache": "🕳️ Schlagloch oder kaputte Fliesen",
+        "optPendiente": "📈 Sehr steiler Anstieg/Abstieg",
+        "optEstrecho": "🚶 Gehweg zu schmal",
+        "btnEnviarAlerta": "📢 MELDUNG ABSENDEN",
+        "txtPanelAdmin": "📋 Ihre Meldung wurde erfolgreich gespeichert:",
+        "alertaOk": "Meldung gesendet! Danke, dass Sie anderen Nachbarn helfen.",
+        "adminMsg": "Die Straße ",
+        "adminMsg2": " hat eine aktive Warnung wegen: ",
+        "adminMsg3": ". Dies beeinträchtigt die aktuellen Berechnungen.",
+        "alertVacio": "Bitte geben Sie ein Ziel ein.",
+        "alertNoEncontrado": "Dieser Ort wurde in Palafrugell nicht gefunden.",
+        "alertEscribeCalle": "Bitte geben Sie den Straßennamen ein."
+    },
+    "it": {
+        "tituloPrincipal": "♿ Palafrugell Accessibile",
+        "txtGuiaRapida": "💡 Come funziona questa applicazione?",
+        "tabNavegacion": "🗺️ Visualizza Mappa",
+        "tabColaborar": "⚠️ Segnala un pericolo",
+        "lblBuscarDestino": "Dove vuoi andare oggi?",
+        "placeholderBuscar": "Es: Mercadona, Plaça Nova, Via Girona...",
+        "btnCalcularRuta": "🔍 TROVA PERCORSO SICURO",
+        "lblDistancia": "Distanza totale:",
+        "lblTiempo": "Tempo di cammino lento:",
+        "lblSeguridad": "Sicurezza del percorso:",
+        "lblIndicaciones": "Condizioni del percorso:",
+        "rutaEstandar": "Percorso pedonale calcolato seguendo marciapiedi e zone tranquille.",
+        "tituloAlerta": "⚠️ Hai trovato un ostacolo per strada? Segnalalo qui",
+        "lblCalleAlerta": "Nome della strada:",
+        "placeholderCalle": "Es: Carrer de la Tarongeta",
+        "lblTipoProblema": "Qual è il problema?",
+        "optObras": "🚧 Lavori in corso / Marciapiede bloccato",
+        "optBache": "🕳️ Buco nel terreno o piastrelle rotte",
+        "optPendiente": "📈 Salita o discesa molto ripida",
+        "optEstrecho": "🚶 Marciapiede troppo stretto",
+        "btnEnviarAlerta": "📢 INVIA SEGNALAZIONE",
+        "txtPanelAdmin": "📋 La tua segnalazione è stata salvata con successo:",
+        "alertaOk": "Segnalazione inviata! Grazie per aver aiutato gli altri vicini.",
+        "adminMsg": "La strada ",
+        "adminMsg2": " ha un avviso attivo per: ",
+        "adminMsg3": ". Influirà sui calcoli attuali.",
+        "alertVacio": "Per favore, inserisci una destinazione.",
+        "alertNoEncontrado": "Luogo non trovato a Palafrugell.",
+        "alertEscribeCalle": "Per favore, inserisci il nome della strada."
+    },
+    "pt": {
+        "tituloPrincipal": "♿ Palafrugell Acessível",
+        "txtGuiaRapida": "💡 Como funciona esta aplicação?",
+        "tabNavegacion": "🗺️ Ver Mapa",
+        "tabColaborar": "⚠️ Avisar de um perigo",
+        "lblBuscarDestino": "Onde quer ir hoje?",
+        "placeholderBuscar": "Ex: Mercadona, Plaça Nova, Carrer Girona...",
+        "btnCalcularRuta": "🔍 ENCONTRAR ROTA SEGURA",
+        "lblDistancia": "Distância total:",
+        "lblTiempo": "Tempo de caminhada lenta:",
+        "lblSeguridad": "Segurança do caminho:",
+        "lblIndicaciones": "Estado deste caminho:",
+        "rutaEstandar": "Rota a pé calculada seguindo passeios e zonas tranquilas.",
+        "tituloAlerta": "⚠️ Encontrou um obstáculo na rua? Avise aqui",
+        "lblCalleAlerta": "Nome da Rua:",
+        "placeholderCalle": "Ex: Carrer de la Tarongeta",
+        "lblTipoProblema": "Qual é o problema?",
+        "optObras": "🚧 Obras / Passeio cortado",
+        "optBache": "🕳️ Buraco no chão ou azulejos partidos",
+        "optPendiente": "📈 Subida ou descida muito inclinada",
+        "optEstrecho": "🚶 Passeio muito estreito",
+        "btnEnviarAlerta": "📢 ENVIAR AVISO",
+        "txtPanelAdmin": "📋 O seu aviso foi guardado corretamente:",
+        "alertaOk": "Aviso enviado! Obrigado por ajudar os outros vizinhos.",
+        "adminMsg": "A rua ",
+        "adminMsg2": " tem um aviso ativo por: ",
+        "adminMsg3": ". Afetará os cálculos atuais.",
+        "alertVacio": "Por favor, escreva um destino.",
+        "alertNoEncontrado": "Não foi encontrado esse local em Palafrugell.",
+        "alertEscribeCalle": "Por favor, escreva o nome da rua."
+    },
+    "nl": {
+        "tituloPrincipal": "♿ Toegankelijk Palafrugell",
+        "txtGuiaRapida": "💡 Hoe werkt deze app?",
+        "tabNavegacion": "🗺️ Bekijk Kaart",
+        "tabColaborar": "⚠️ Gevaar melden",
+        "lblBuscarDestino": "Waar wil je vandaag naartoe?",
+        "placeholderBuscar": "Bijv: Mercadona, Plaça Nova, Carrer Girona...",
+        "btnCalcularRuta": "🔍 VIND VEILIGE ROUTE",
+        "lblDistancia": "Totale afstand:",
+        "lblTiempo": "Tijd bij langzaam lopen:",
+        "lblSeguridad": "Veiligheid van het pad:",
+        "lblIndicaciones": "Status van het pad:",
+        "rutaEstandar": "Wandelroute berekend via trottoirs en rustige zones.",
+        "tituloAlerta": "⚠️ Obstakel op straat gevonden? Meld het hier",
+        "lblCalleAlerta": "Straatnaam:",
+        "placeholderCalle": "Bijv: Carrer de la Tarongeta",
+        "lblTipoProblema": "Wat is het probleem?",
+        "optObras": "🚧 Werkzaamheden / Trottoir geblokkeerd",
+        "optBache": "🕳️ Gat in de weg of kapotte tegels",
+        "optPendiente": "📈 Zeer steile helling",
+        "optEstrecho": "🚶 Trottoir te smal",
+        "btnEnviarAlerta": "📢 VERSTUUR MELDING",
+        "txtPanelAdmin": "📋 Je melding is succesvol opgeslagen:",
+        "alertaOk": "Melding verstuurd! Bedankt voor het helpen van je buren.",
+        "adminMsg": "De straat ",
+        "adminMsg2": " heeft een actieve waarschuwing voor: ",
+        "adminMsg3": ". Dit beïnvloedt de huidige berekeningen.",
+        "alertVacio": "Vul alstublieft een bestemming in.",
+        "alertNoEncontrado": "Locatie niet gevonden in Palafrugell.",
+        "alertEscribeCalle": "Vul alstublieft de straatnaam in."
+    }
+};
+var datosCallesPalafrugell = {
+    "abat escarre": { seguridad: 0, aviso: "❌ Forats al terra i sense vorera." },
+    "aigua blava": { seguridad: 0, aviso: "❌ Sense vorera." },
+    "aigua xelida": { seguridad: 0, aviso: "❌ Sense vorera, molta pujada, terra trencat." },
+    "alfons xii": { seguridad: 90, aviso: "🟢 Carrer molt segur i pla." },
+    "alguer": { seguridad: 90, aviso: "🟢 Bona vorera per passar." },
+    "allada": { seguridad: 90, aviso: "🟢 Tram segur." },
+    "almogavers": { seguridad: 0, aviso: "❌ Voreres estretes i molta pujada." },
+    "alt camp": { seguridad: 90, aviso: "🟢 Alta seguretat." },
+    "alzina surera": { seguridad: 90, aviso: "🟢 Bona accessibilitat." },
+    "alzina": { seguridad: 0, aviso: "❌ Voreres estretes i molta pujada." },
+    "amadeu vives": { seguridad: 80, aviso: "👍 Bona seguretat general." },
+    "ample": { seguridad: 70, aviso: "⚠️ Voreres petites i una mica de pujada." },
+    "andalusia": { seguridad: 90, aviso: "🟢 Carrer molt accessible i fàcil." },
+    "andorra": { seguridad: 60, aviso: "⚠️ Voreres estretes i pendent." },
+    "aneto": { seguridad: 0, aviso: "❌ Voreres estretes i molta pujada." },
+    "angel ferran": { seguridad: 75, aviso: "⚠️ Tram amb una mica de pujada." },
+    "angel guimera": { seguridad: 90, aviso: "🟢 Es pot passar bé." },
+    "angels": { seguridad: 100, aviso: "✨ Excel·lent! Tot pla, ample i segur." },
+    "animes": { seguridad: 70, aviso: "⚠️ Voreres estretes i inclinades." },
+    "anna frank": { seguridad: 100, aviso: "✨ Plaça totalment plana i còmoda." },
+    "anoia": { seguridad: 40, aviso: "❌ Molta pujada senyors." },
+    "anselm clave": { seguridad: 60, aviso: "⚠️ Molta pujada." },
+    "antoni gaudi": { seguridad: 40, aviso: "❌ Voreres estretes i costa avall/amunt." },
+    "antoni j rovira": { seguridad: 100, aviso: "✨ Avinguda molt àmplia i adaptada." },
+    "antonio machado": { seguridad: 70, aviso: "⚠️ Voreres una mica estretes." },
+    "antonio miguel ramirez": { seguridad: 100, aviso: "✨ Entorn pla i molt fàcil." },
+    "arc": { seguridad: 100, aviso: "✨ Carrer amb terra llis i perfecte." },
+    "argentina": { seguridad: 0, aviso: "❌ Sense voreres i molta pujada." },
+    "august pi i sunyer": { seguridad: 30, aviso: "❌ Molta pujada pronunciada." },
+    "ausias march": { seguridad: 90, aviso: "🟢 Bon carrer per caminar quiet." },
+    "avi xaxu": { seguridad: 80, aviso: "👍 Pujada suau." },
+    "avia catalana": { seguridad: 40, aviso: "❌ Molta pujada perillosa." },
+    "bailen": { seguridad: 40, aviso: "❌ Voreres estretes." },
+    "baix camp": { seguridad: 70, aviso: "⚠️ Presència de pendents." },
+    "baix llobregat": { seguridad: 60, aviso: "⚠️ Pujada i voreres estretes." },
+    "baix": { seguridad: 60, aviso: "⚠️ Sense voreres i amb desnivell." },
+    "baldomer gili i roig": { seguridad: 100, aviso: "✨ Avinguda òptima per a rodes." },
+    "balears": { seguridad: 30, aviso: "❌ Molta pujada i voreres estretes." },
+    "balmes": { seguridad: 90, aviso: "🟢 Voreres petites però es camina bé." },
+    "banyoles": { seguridad: 0, aviso: "❌ Carrer de terra, sense voreres i amb pujada." },
+    "banys d'en caixa": { seguridad: 60, aviso: "⚠️ Pendent a la via." },
+    "barca": { seguridad: 0, aviso: "❌ Sense voreres i molta pujada." },
+    "barcelona": { seguridad: 90, aviso: "🟢 Zona segura." },
+    "barcelones": { seguridad: 60, aviso: "⚠️ Vorera estreta i pendent." },
+    "barceloneta": { seguridad: 100, aviso: "✨ Carrer completament adaptat i llis." },
+    "barris i buixo": { seguridad: 60, aviso: "⚠️ Molta pujada de davant." },
+    "beethoven": { seguridad: 90, aviso: "🟢 Pujada molt lleugera." },
+    "begur": { seguridad: 20, aviso: "❌ Molta pujada i voreres gairebé invisibles." },
+    "bella vista": { seguridad: 60, aviso: "⚠️ Voreres estretes i una mica d'inclinació." },
+    "bellcaire": { seguridad: 40, aviso: "❌ Voreres estretes amb pujada." },
+    "berenguer mallol": { seguridad: 20, aviso: "❌ Voreres estretes i molta pujada." },
+    "bergueda": { seguridad: 30, aviso: "❌ Voreres molt estretes i amb caiguda." },
+    "berruguete": { seguridad: 0, aviso: "❌ Voreres molt estretes i molta pujada." },
+    "besuc": { seguridad: 100, aviso: "✨ Carrer molt segur." },
+    "bisbal": { seguridad: 0, aviso: "❌ Voreres estretes i molta pujada extrema." },
+    "blanes": { seguridad: 30, aviso: "❌ Voreres estretes i inclinades." },
+    "blas de otero": { seguridad: 20, aviso: "❌ Voreres estretes i molta pujada." },
+    "bobila": { seguridad: 30, aviso: "❌ Plaça poc adequada." },
+    "bofill i codina": { seguridad: 20, aviso: "❌ Tram amb forta pujada." },
+    "bolivia": { seguridad: 0, aviso: "❌ Terra d'arena i sense voreres." },
+    "botines": { seguridad: 100, aviso: "✨ Accessibilitat total i còmoda." },
+    "brasil": { seguridad: 0, aviso: "❌ Molta pujada i sense voreres." },
+    "brigades internacionals": { seguridad: 60, aviso: "⚠️ Bastant costerut." },
+    "brisa": { seguridad: 20, aviso: "❌ Voreres estretes i molta inclinació." },
+    "bruc": { seguridad: 70, aviso: "⚠️ Voreres un xic estretes." },
+    "bruguerol": { seguridad: 20, aviso: "❌ Via sense voreres laterals." },
+    "cabo verde": { seguridad: 20, aviso: "❌ Voreres molt estretes i forta pujada." },
+    "cabrera": { seguridad: 20, aviso: "❌ Molta pujada i voreres petites." },
+    "cadaques": { seguridad: 90, aviso: "🟢 Carrer ben asfaltat." },
+    "cadi": { seguridad: 20, aviso: "❌ Vorera estreta amb pujada." },
+    "cala del vedell": { seguridad: 0, aviso: "❌ Vorera estreta i molta pujada." },
+    "cala es portio": { seguridad: 70, aviso: "⚠️ Pas regular." },
+    "cala marquesa": { seguridad: 0, aviso: "❌ Sense voreres i molta pujada." },
+    "calau": { seguridad: 50, aviso: "⚠️ Desnivel i inclinació pronunciada." },
+    "calderon de la barca": { seguridad: 40, aviso: "❌ Vorera estreta i molta pujada." },
+    "calonge": { seguridad: 0, aviso: "❌ Terra de sorra sense voreres." },
+    "camelia": { seguridad: 60, aviso: "⚠️ Voreres estretes i pujada." },
+    "camp d'en prats": { seguridad: 100, aviso: "✨ Entorn ideal urbà i pla." },
+    "campillos": { seguridad: 70, aviso: "⚠️ Pujada moderada." },
+    "can mario": { seguridad: 100, aviso: "✨ Espai de vianants perfecte." },
+    "canadell": { seguridad: 100, description: "Passeig marítim adaptat i bonic." },
+    "canaries": { seguridad: 80, aviso: "👍 Voreres un poc menudes." },
+    "canigo": { seguridad: 40, aviso: "❌ Voreres petites i molta pujada." },
+    "cant dels ocells": { seguridad: 20, aviso: "❌ Voreres molt petites." },
+    "cantallops": { seguridad: 20, aviso: "❌ Voreres molt ajustades." },
+    "canyers": { seguridad: 80, aviso: "👍 Pujada que es pot controlar." },
+    "cap de creus": { seguridad: 100, aviso: "✨ Paviment segur i llis." },
+    "cap de planes": { seguridad: 30, aviso: "❌ Voreres petites i bastant pendent." },
+    "capsacosta": { seguridad: 80, aviso: "👍 Pujada molt suau." },
+    "caritat": { seguridad: 30, aviso: "❌ Voreres estretes i amb desnivells." },
+    "carles buigas": { seguridad: 0, aviso: "❌ Pujada forta i sense voreres." },
+    "carles rahola": { seguridad: 100, aviso: "✨ Carrer fantàstic molt segur." },
+    "carles vila": { seguridad: 50, aviso: "⚠️ Voreres petites i amb pendent." },
+    "carrilet": { seguridad: 100, description: "Via verda molt llisa i adaptada." },
+    "carudo": { seguridad: 50, aviso: "⚠️ Voreres reduïdes i inclinació." },
+    "cases noves": { seguridad: 90, aviso: "🟢 Terra estable." },
+    "castella": { seguridad: 30, aviso: "❌ Voreres estretes i amb desnivells." },
+    "castellets": { seguridad: 60, aviso: "⚠️ Passos i voreres estretes." },
+    "catalunya": { seguridad: 100, aviso: "✨ Entorn cèntric totalment adaptat." },
+    "cau toixo": { seguridad: 0, aviso: "❌ Camí intransitable." },
+    "cau": { seguridad: 0, aviso: "❌ Sense voreres i amb pujada." },
+    "cavallers": { seguridad: 100, aviso: "✨ Zona de vianants idònia i plana." },
+    "celebantic": { seguridad: 20, aviso: "❌ Molta pujada, voreres estretes i arrels d'arbres al terra." },
+    "cementiri": { seguridad: 50, aviso: "⚠️ Voreres estretes." },
+    "centenari de la costa brava": { seguridad: 100, aviso: "✨ Plaça plana de fàcil accés." },
+    "cerdanya": { seguridad: 80, aviso: "👍 Voreres un poc justes." },
+    "cervantes": { seguridad: 80, aviso: "👍 Voreres estretes però fermes." },
+    "cesarea": { seguridad: 20, aviso: "❌ Voreres estretes i forta pujada." },
+    "chopin": { seguridad: 100, aviso: "✨ Carrer lliure d'obstacles." },
+    "chopitea": { seguridad: 80, aviso: "⚠️ Falta vorera en un dels costats." },
+    "cicero": { seguridad: 0, aviso: "❌ Sense voreres i superfície de sorra." },
+    "cipsela": { seguridad: 100, aviso: "✨ Passeig ampli i adaptat." },
+    "clara campoamor": { seguridad: 60, aviso: "⚠️ Manca de voreres ben marcades." },
+    "codina": { seguridad: 80, aviso: "👍 Voreres transitables." },
+    "codol": { seguridad: 50, aviso: "⚠️ No hi ha voreres." },
+    "colombia": { seguridad: 0, aviso: "❌ Camí rústic sense voreres." },
+    "colomer": { seguridad: 65, aviso: "⚠️ Voreres estretes amb pujada." },
+    "concordia": { seguridad: 100, aviso: "✨ Carrer excel·lent sense barreres." },
+    "consell": { seguridad: 100, aviso: "✨ Totalment adaptada." },
+    "consolat del mar": { seguridad: 20, aviso: "❌ Voreres estretes i bastant pendent." },
+    "constancia": { seguridad: 80, aviso: "👍 Voreres una mica estretes." },
+    "coral": { seguridad: 80, aviso: "👍 Voreres transitables." },
+    "coral, ronda": { seguridad: 60, aviso: "⚠️ Bastant pendent de pujada o baixada." },
+    "corsega": { seguridad: 80, aviso: "🟢 Terra segur." },
+    "corts catalanes": { seguridad: 100, description: "Avinguda principal molt segura." },
+    "costa brava": { seguridad: 0, aviso: "❌ Terra d'arena molt irregular." },
+    "costa de la luz": { seguridad: 30, aviso: "❌ Sense voreres i amb forta pujada." },
+    "costa dels tarongers": { seguridad: 80, aviso: "👍 Voreres estretes." },
+    "costa rica": { seguridad: 0, aviso: "❌ Sense voreres i molta pujada." },
+    "costa verda": { seguridad: 70, aviso: "⚠️ Voreres estretes amb pujada." },
+    "cova del bisbe": { seguridad: 0, aviso: "❌ Sense vorera amb pujada extrema." },
+    "creu roquinyola": { seguridad: 60, aviso: "⚠️ Via sense voreres ben fetes." },
+    "crit": { seguridad: 90, aviso: "🟢 Lleugera inclinació." },
+    "cruilles": { seguridad: 70, aviso: "⚠️ Voreres un xic estretes." },
+    "cuba": { seguridad: 0, aviso: "❌ Via sense voreres i amb molta pujada." },
+    "cul-de-sac": { seguridad: 40, aviso: "❌ Voreres estretes i bastant desnivell." },
+    "dentol": { seguridad: 100, aviso: "✨ Carrer segur." },
+    "doctor fleming": { seguridad: 100, aviso: "✨ Carrer adaptat i totalment llis." },
+    "doctor robert": { seguridad: 100, aviso: "✨ Excel·lent connexió i rampes bones." },
+    "dofi": { seguridad: 50, aviso: "⚠️ Vorera estreta amb pujada." },
+    "eivissa": { seguridad: 30, aviso: "❌ Sense voreres i molta pujada." },
+    "el hierro": { seguridad: 0, aviso: "❌ Camí de terra impracticable." },
+    "emporda": { seguridad: 60, aviso: "⚠️ Voreres estretes i desnivells." },
+    "enric granados": { seguridad: 90, aviso: "⚠️ Cotxes mal aparcats a la vorera de tant en tant." },
+    "estacio": { seguridad: 30, aviso: "❌ Via molt estreta sense voreres." },
+    "estiu": { seguridad: 60, aviso: "⚠️ Vorera estreta i lleugera pujada." },
+    "estrella": { seguridad: 40, aviso: "❌ Voreres summament estretes." },
+    "extremadura": { seguridad: 60, aviso: "⚠️ Bastant costerut." },
+    "far": { seguridad: 10, aviso: "❌ Perill: sense voreres i molta pujada." },
+    "farena": { seguridad: 60, aviso: "⚠️ Pujada i voreres estretes." },
+    "filipines": { seguridad: 20, aviso: "❌ Terra d'arena, pujada i voreres estretes." },
+    "flaca": { seguridad: 40, aviso: "❌ Molta pujada i voreres estretes." },
+    "floreal": { seguridad: 0, aviso: "⚠️ Cruïlla per rotonda complexa, feu servir els passos de vianants." },
+    "font": { seguridad: 100, aviso: "✨ Paviment perfecte per caminar quiet." },
+    "foradada": { seguridad: 20, aviso: "❌ Voreres estretes i bastant desnivell." },
+    "formentera": { seguridad: 40, aviso: "❌ Molta pujada amb voreres estretes." },
+    "forns": { seguridad: 60, aviso: "⚠️ Voreres estretes amb desnivells." },
+    "fra maur ametller": { seguridad: 30, aviso: "❌ Molta pujada i voreres molt petites." },
+    "francesc estrabau": { seguridad: 40, aviso: "❌ Voreres estretes i bastant pendent." },
+    "francesc layret": { seguridad: 40, aviso: "❌ Carrer extremadament estret sense voreres." },
+    "francesc macia": { seguridad: 60, aviso: "⚠️ Voreres estretes amb desnivell." },
+    "galera": { seguridad: 20, aviso: "❌ Terra trencat d'arena i amb pujada." },
+    "garbi, escales": { seguridad: 0, aviso: "❌ Impossible: Tot són escales sense rampa." },
+    "garoina": { seguridad: 40, aviso: "❌ Bastant costerut i voreres estretes." },
+    "gas": { seguridad: 60, description: "Manca vorera en un costat." },
+    "gavina": { seguridad: 50, aviso: "⚠️ Tram sense voreres físiques." },
+    "gelpi": { seguridad: 20, aviso: "❌ Voreres estretes i bastant pendent." },
+    "general prim": { seguridad: 50, aviso: "⚠️ Voreres estretes i trull inclinat." },
+    "girones": { seguridad: 35, aviso: "❌ Voreres estretes i amb forta pujada." },
+    "golfet": { seguridad: 30, aviso: "❌ Voreres estretes i bastant desnivell." },
+    "granota": { seguridad: 30, aviso: "❌ Carrer sense voreres estructurades." },
+    "guifre el pelos": { seguridad: 60, aviso: "⚠️ Voreres estretes i amb pujada." },
+    "guilleries": { seguridad: 30, aviso: "❌ Molta pujada prolongada." },
+    "gustavo adolfo becquer": { seguridad: 40, aviso: "❌ Sense voreres i bastant desnivell." },
+    "homer": { seguridad: 70, aviso: "⚠️ Voreres estretes amb desnivells." },
+    "horts": { seguridad: 80, aviso: "⚠️ Voreres estretes de pas." },
+    "illes formigues": { seguridad: 60, aviso: "⚠️ Pujada i voreres estretes." },
+    "independencia": { seguridad: 70, aviso: "⚠️ Voreres un xic estretes." },
+    "isaac peral": { seguridad: 70, aviso: "⚠️ Voreres estretes amb inclinació." },
+    "isabel ii": { seguridad: 80, aviso: "👍 Voreres estretes amb lleugera pujada." },
+    "tarongeta": { seguridad: 50, aviso: "⚠️ Tram amb voreres estretes." },
+    "progres": { seguridad: 60, aviso: "⚠️ Vorera antiga, camineu pel costat esquerre." },
+    "girona": { seguridad: 100, aviso: "✨ Carrer totalment llis, pla i adaptat." }
+};
+
+var callesConObstaculosReportados = {};
+
+window.onload = function() {
+    mapa = L.map('mapa', { zoomControl: true }).setView([origenLat, origenLon], 15);
+
+    // Fem servir el mapa normal (clar) amb carrers ben definits i fàcils de llegir
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(mapa);
+
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(position) {
+            origenLat = position.coords.latitude;
+            origenLon = position.coords.longitude;
+            mapa.setView([origenLat, origenLon], 16);
+            
+            if (marcadorOrigen) mapa.removeLayer(marcadorOrigen);
+            marcadorOrigen = L.marker([origenLat, origenLon], {
+                icon: L.icon({
+                    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+                    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                    iconSize: [25, 41],
+                    iconAnchor: [12, 41],
+                    popupAnchor: [1, -34],
+                    shadowSize: [41, 41]
+                })
+            }).addTo(mapa).bindPopup("<b>La teva ubicació real</b>").openPopup();
+        }, function(error) {
+            marcadorOrigen = L.marker([origenLat, origenLon]).addTo(mapa).bindPopup("Palafrugell Centre").openPopup();
+        });
+    }
+    cambiarPestana('navegacion');
+    cambiarIdioma();
+};
+
+function cambiarPestana(nombreTab) {
+    var tabNav = document.getElementById('pestanaNavegacion');
+    var tabCol = document.getElementById('pestanaColaborar');
+    var btnNav = document.getElementById('btnTabNavegacion');
+    var btnCol = document.getElementById('btnTabColaborar');
+
+    if (nombreTab === 'navegacion') {
+        tabNav.style.display = 'block';
+        tabCol.style.display = 'none';
+        
+        btnNav.className = "w-1/2 py-3.5 text-base font-black rounded-xl transition duration-200 text-center bg-emerald-600 text-white shadow-md border-2 border-emerald-700";
+        btnCol.className = "w-1/2 py-3.5 text-base font-black rounded-xl transition duration-200 text-center text-slate-700 hover:bg-slate-300 bg-slate-100 border border-slate-300";
+        
+        setTimeout(() => { mapa.invalidateSize(); }, 200);
+    } else {
+        tabNav.style.display = 'none';
+        tabCol.style.display = 'block';
+        
+        btnNav.className = "w-1/2 py-3.5 text-base font-black rounded-xl transition duration-200 text-center text-slate-700 hover:bg-slate-300 bg-slate-100 border border-slate-300";
+        btnCol.className = "w-1/2 py-3.5 text-base font-black rounded-xl transition duration-200 text-center bg-orange-600 text-white shadow-md border-2 border-orange-700";
+    }
+}
+
+function enviarAlertaComunidad() {
+    var calle = document.getElementById('calleAlerta').value.trim();
+    var problema = document.getElementById('tipoProblema').options[document.getElementById('tipoProblema').selectedIndex].text;
+    var lang = document.getElementById('selectorIdioma').value;
+    var t = traducciones[lang] || traducciones["es"];
+
+    if (calle === "") {
+        alert(t.alertEscribeCalle);
+        return;
+    }
+
+    alert(t.alertaOk);
+    var claveLimpia = limpiarTextoCalle(calle);
+    callesConObstaculosReportados[claveLimpia] = problema;
+
+    document.getElementById('panelAdmin').style.display = 'block';
+    document.getElementById('datosAlerta').innerHTML = t.adminMsg + "<b>" + calle + "</b>" + t.adminMsg2 + "<u>" + problema + "</u>" + t.adminMsg3;
+}
+
+function cambiarIdioma() {
+    var lang = document.getElementById('selectorIdioma').value;
+    var t = traducciones[lang];
+
+    document.getElementById('txtTituloPrincipal').innerText = t.tituloPrincipal;
+    document.getElementById('txtGuiaRapida').innerText = t.txtGuiaRapida;
+    document.getElementById('btnTabNavegacion').innerText = t.tabNavegacion;
+    document.getElementById('btnTabColaborar').innerText = t.tabColaborar;
+    
+    document.getElementById('lblBuscarDestino').innerText = t.lblBuscarDestino;
+    document.getElementById('buscadorDestino').placeholder = t.placeholderBuscar;
+    document.getElementById('btnCalcularRuta').innerText = t.btnCalcularRuta;
+    
+    document.getElementById('lblDistancia').innerText = t.lblDistancia;
+    document.getElementById('lblTiempo').innerText = t.lblTiempo;
+    document.getElementById('lblSeguridad').innerText = t.lblSeguridad;
+    document.getElementById('lblIndicaciones').innerText = t.lblIndicaciones;
+    
+    document.getElementById('txtTituloAlerta').innerText = t.tituloAlerta;
+    document.getElementById('lblCalleAlerta').innerText = t.lblCalleAlerta;
+    document.getElementById('calleAlerta').placeholder = t.placeholderCalle;
+    document.getElementById('lblTipoProblema').innerText = t.lblTipoProblema;
+    
+    document.getElementById('optObras').innerText = t.optObras;
+    document.getElementById('optBache').innerText = t.optBache;
+    document.getElementById('optPendiente').innerText = t.optPendiente;
+    document.getElementById('optEstrecho').innerText = t.optEstrecho;
+    document.getElementById('btnEnviarAlerta').innerText = t.btnEnviarAlerta;
+    document.getElementById('txtPanelAdmin').innerText = t.txtPanelAdmin;
+}
+
+function buscarYCalcular() {
+    var busqueda = document.getElementById('buscadorDestino').value.trim();
+    var lang = document.getElementById('selectorIdioma').value;
+    var t = traducciones[lang] || traducciones["es"];
+
+    if (busqueda === "") {
+        alert(t.alertVacio);
+        return;
+    }
+
+    var urlBuscar = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(busqueda + ", Palafrugell")}&limit=5`;
+
+    fetch(urlBuscar)
+        .then(response => response.json())
+        .then(data => {
+            if (data.length > 0) {
+                var mejorOpcion = data[0];
+                var dLat = parseFloat(mejorOpcion.lat);
+                var dLon = parseFloat(mejorOpcion.lon);
+                calcularRutaEntreDosPuntos(origenLat, origenLon, dLat, dLon, busqueda, busqueda);
+            } else {
+                alert(t.alertNoEncontrado);
+            }
+        })
+        .catch(error => {
+            console.error("Error buscando el lugar:", error);
+        });
+}
+
+function limpiarTextoCalle(texto) {
+    if (!texto) return "";
+    return texto.toLowerCase()
+        .replace(/carrer\s+de\s+l'|carrer\s+de\s+la\s+|carrer\s+de\s+|carrer\s+d'|carrer\s+|avinguda\s+de\s+les\s+|avinguda\s+de\s+|avinguda\s+d'|avinguda\s+|passeig\s+del\s+|passeig\s+de\s+|passeig\s+|plaça\s+de\s+la\s+|plaça\s+del\s+|plaça\s+de\s+|plaça\s+d'/g, "")
+        .trim();
+}
+
+function calcularRutaEntreDosPuntos(origLat, origLon, destLat, destLon, nombreDestino, textoOriginal) {
+    var lang = document.getElementById('selectorIdioma').value;
+    var t = traducciones[lang] || traducciones["es"];
+
+    if (controlEnrutador) {
+        mapa.removeControl(controlEnrutador);
+    }
+
+    controlEnrutador = L.Routing.control({
+        waypoints: [
+            L.latLng(origLat, origLon),
+            L.latLng(destLat, destLon)
+        ],
+        router: new L.Routing.OSRMv1({
+            serviceUrl: 'https://routing.openstreetmap.de/routed-foot/route/v1', 
+            profile: 'foot',
+            useHints: false,
+            alternatives: true
+        }),
+        lineOptions: {
+            // Línia blava fosca molt gruixuda i visible per sobre del mapa clar
+            styles: [{ color: '#1d4ed8', opacity: 0.9, weight: 8 }] 
+        },
+        createMarker: function(i, waypoint, n) {
+            if (i === n - 1) {
+                return L.marker(waypoint.latLng).bindPopup(`<b>${nombreDestino}</b>`).openPopup();
+            }
+            return null; 
+        }
+    }).addTo(mapa);
+
+    controlEnrutador.on('routesfound', function(e) {
+        var rutasDisponibles = e.routes;
+        var rutaSeleccionada = rutasDisponibles[0];
+        var maximaSeguridadMedia = -1;
+        
+        for (var r = 0; r < rutasDisponibles.length; r++) {
+            var rutaEvaluar = rutasDisponibles[r];
+            var sumaSeguridadRuta = 0;
+            var callesContadas = 0;
+            var contieneCalleCero = false;
+            var soloTieneCeroComoOpcion = true;
+
+            if (rutaEvaluar.instructions) {
+                rutaEvaluar.instructions.forEach(ins => {
+                    if (ins.road) {
+                        var nombreLimpio = limpiarTextoCalle(ins.road);
+                        
+                        if (nombreLimpio.includes("rotonda") || nombreLimpio === "floreal") {
+                            sumaSeguridadRuta += 80; 
+                            callesContadas++;
+                        } else if (datosCallesPalafrugell[nombreLimpio] !== undefined) {
+                            var seg = datosCallesPalafrugell[nombreLimpio].seguridad;
+                            if (seg === 0) contieneCalleCero = true;
+                            if (seg > 0) soloTieneCeroComoOpcion = false;
+                            
+                            sumaSeguridadRuta += seg;
+                            callesContadas++;
+                        }
+                    }
+                });
+            }
+
+            var seguridadMedia = callesContadas > 0 ? (sumaSeguridadRuta / callesContadas) : 100;
+
+            if (contieneCalleCero && soloTieneCeroComoOpcion) {
+                seguridadMedia = 5; 
+            } else if (contieneCalleCero && !soloTieneCeroComoOpcion) {
+                seguridadMedia -= 50; 
+            }
+
+            if (seguridadMedia > maximaSeguridadMedia) {
+                maximaSeguridadMedia = seguridadMedia;
+                rutaSeleccionada = rutaEvaluar;
+            }
+        }
+
+        var distanciaMetros = rutaSeleccionada.summary.totalDistance; 
+        var velocidadPersona = 0.5; // Més a poc a poc pensat en avis (0.5 m/s)
+        var tiempoMinutos = Math.round((distanciaMetros / velocidadPersona) / 60);
+
+        var porcentajeSeguridadFinal = 100;
+        var listadoAvisos = [];
+
+        if (rutaSeleccionada.instructions) {
+            var totalSeg = 0, cuenta = 0;
+            var tieneAislamientoCero = true;
+
+            rutaSeleccionada.instructions.forEach(ins => {
+                if (ins.road) {
+                    var roadLimpio = limpiarTextoCalle(ins.road);
+                    
+                    if (roadLimpio.includes("rotonda") || roadLimpio === "floreal") {
+                        totalSeg += 80;
+                        cuenta++;
+                        tieneAislamientoCero = false;
+                        if (!listadoAvisos.includes("🔄 Rotonda: Aneu amb compte en creuar pels passos marcats.")) {
+                            listadoAvisos.push("🔄 Rotonda: Aneu amb compte en creuar pels passos marcats.");
+                        }
+                    } else if (datosCallesPalafrugell[roadLimpio] !== undefined) {
+                        var valorSeg = datosCallesPalafrugell[roadLimpio].seguridad;
+                        if (valorSeg > 0) tieneAislamientoCero = false;
+                        
+                        totalSeg += valorSeg;
+                        cuenta++;
+                        
+                        if (datosCallesPalafrugell[roadLimpio].aviso && !listadoAvisos.includes(datosCallesPalafrugell[roadLimpio].aviso)) {
+                            listadoAvisos.push(datosCallesPalafrugell[roadLimpio].aviso);
+                        }
+                    }
+                }
+            });
+
+            if (cuenta > 0) {
+                porcentajeSeguridadFinal = Math.round(totalSeg / cuenta);
+                if (tieneAislamientoCero) {
+                    porcentajeSeguridadFinal = 0;
+                }
+            }
+        }
+
+        var busquedaLimpia = limpiarTextoCalle(textoOriginal);
+        for (var calleReportada in callesConObstaculosReportados) {
+            if (busquedaLimpia.includes(calleReportada) || (nombreDestino && nombreDestino.toLowerCase().includes(calleReportada))) {
+                var detalleObstaculo = callesConObstaculosReportados[calleReportada];
+                porcentajeSeguridadFinal = detalleObstaculo.toLowerCase().includes("pendiente") ? 30 : 45;
+                listadoAvisos.unshift(`<span style="color:#b91c1c; font-weight:bold;">⚠️ PERILL ALERTA: ${detalleObstaculo}.</span>`);
+            }
+        }
+
+        document.getElementById('tarjetaRuta').style.display = 'block';
+        document.getElementById('tituloDestino').innerText = "🚶 " + nombreDestino;
+        document.getElementById('distanciaMetros').innerText = Math.round(distanciaMetros) + " metres";
+        document.getElementById('tiempoMinutos').innerText = (tiempoMinutos < 1 ? 1 : tiempoMinutos) + " minuts aprox.";
+        
+        var textoIndicaciones = listadoAvisos.length > 0 ? listadoAvisos.join("<br>") : t.rutaEstandar;
+        document.getElementById('indicaciones').innerHTML = "<b>Detalls dels carrers:</b><br>" + textoIndicaciones;
+
+        // SISTEMA DE COLORS ESTIL SEMÀFOR (Molt fàcil de veure)
+        var txtSeguridad = document.getElementById('valorSeguridad');
+        var cardContenedor = document.getElementById('contenedorSeguridad');
+        txtSeguridad.innerText = porcentajeSeguridadFinal + "%";
+        
+        if (porcentajeSeguridadFinal >= 85) {
+            // VERD SEGUR
+            cardContenedor.className = "bg-green-100 border-4 border-green-600 px-4 py-2 rounded-2xl text-center flex items-center justify-between gap-4 w-full sm:w-auto";
+            txtSeguridad.className = "font-black text-2xl text-green-700";
+        } else if (porcentajeSeguridadFinal >= 50) {
+            // GROC ALERTA
+            cardContenedor.className = "bg-yellow-100 border-4 border-yellow-500 px-4 py-2 rounded-2xl text-center flex items-center justify-between gap-4 w-full sm:w-auto";
+            txtSeguridad.className = "font-black text-2xl text-yellow-700";
+        } else {
+            // VERMELL PERILL
+            cardContenedor.className = "bg-red-100 border-4 border-red-600 px-4 py-2 rounded-2xl text-center flex items-center justify-between gap-4 w-full sm:w-auto";
+            txtSeguridad.className = "font-black text-2xl text-red-700";
+        }
+    });
+
+    controlEnrutador.on('routingerror', function() {
+        var coordsDirectas = [[origLat, origLon], [destLat, destLon]];
+        var lineaAlternativa = L.polyline(coordsDirectas, {color: '#dc2626', weight: 6, dashArray: '5,10'}).addTo(mapa);
+        mapa.fitBounds(lineaAlternativa.getBounds());
+    });
+}
+</script>
+</body> 
+<div class="mt-6 p-6 bg-slate-50 border border-slate-300 rounded-2xl shadow-sm">
+    <h4 class="font-bold text-slate-900 mb-3 flex items-center gap-2">
+        🔒 Sobre la teva privacitat
+    </h4>
+    
+    <div class="text-[12px] text-slate-700 leading-relaxed text-justify space-y-3">
+        <p>
+            La teva col·laboració és fonamental per fer de Palafrugell un municipi més accessible i segur per a tothom. 
+            Som plenament conscients de la confiança que diposites en nosaltres en compartir informació sobre l'estat 
+            de la via pública, i per això, ens comprometem a gestionar cada avís amb la màxima rigorositat i transparència.
+        </p>
+
+        <p>
+            Quan envies aquest avís, les teves dades (ubicació i tipus d'incidència) són tractades amb l'única finalitat de 
+            millorar l'accessibilitat urbana. La teva informació es transmet de forma segura a través de serveis 
+            xifrats i <strong>garantim que no serà cedida a tercers</strong> sense el teu consentiment explícit. 
+            D'acord amb el Reglament General de Protecció de Dades (RGPD), tens el control total sobre la teva informació: 
+            pots accedir-hi, rectificar-la o sol·licitar la seva supressió en qualsevol moment contactant amb nosaltres. 
+            En marcar la casella i enviar el formulari, acceptes que processem aquestes dades per poder gestionar la teva incidència.
+        </p>
+    </div>
+
+    <label class="flex items-start gap-3 cursor-pointer pt-4 mt-4 border-t border-slate-200">
+        <input type="checkbox" name="consentimiento" required class="mt-1 w-4 h-4">
+        <span class="text-[11px] text-slate-800 font-medium">
+            Entenc i accepto el tractament de les meves dades tal com s'ha descrit anteriorment.
+        </span>
+    </label>
+</div>
+<script>
+    // Asegúrate de que este script esté al final del archivo
+    const checkbox = document.querySelector('input[name="consentimiento"]');
+    const btn = document.querySelector('button[type="submit"]');
+
+    if(checkbox && btn) {
+        btn.disabled = true;
+        checkbox.addEventListener('change', function() {
+            btn.disabled = !this.checked;
+        });
+    }
+</script>
+</script>
+</html>
