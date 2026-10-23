@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Palafrugell Accessible</title>
+<meta name="description" content="Rutes a peu accessibles per a cadira de rodes i gent gran a Palafrugell.">
+<meta name="theme-color" content="#17365d">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icons/favicon.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{--navy:#17365d;--teal:#0e7c78;--green:#2f8a3d;--amber:#b86e00;--red:#b3261e;--paper:#f5f8f6;--line:#c5d0cc;--fs:18px}
+*{box-sizing:border-box}html{font-size:var(--fs)}
+body{margin:0;font-family:'Atkinson Hyperlegible',system-ui,sans-serif;background:var(--paper);color:#14202e;line-height:1.5;padding-bottom:env(safe-area-inset-bottom)}
+header{background:var(--navy);color:#fff;padding:.6rem 1rem;padding-top:calc(.6rem + env(safe-area-inset-top));display:flex;align-items:center;gap:.7rem;flex-wrap:wrap}
+header img{width:46px;height:46px;border-radius:50%;background:#fff}
+header h1{font-size:1.15rem;margin:0;flex:1;min-width:9rem;line-height:1.2}
+header small{display:block;font-weight:400;opacity:.85;font-size:.75rem}
+.tools{display:flex;gap:.4rem;align-items:center}
+select,input[type=text],textarea{font:inherit;color:inherit;border:2px solid #6b7c78;border-radius:10px;padding:.6rem .7rem;background:#fff;width:100%}
+header select{width:auto;padding:.4rem}
+button{font:inherit;font-weight:700;cursor:pointer;border-radius:12px;border:2px solid var(--navy);background:#fff;color:var(--navy);min-height:3rem;padding:.4rem 1rem}
+button.main{background:var(--teal);border-color:var(--teal);color:#fff;width:100%;font-size:1.05rem}
+header button{min-height:2.4rem;padding:.1rem .6rem;border-color:#fff;background:transparent;color:#fff}
+:focus-visible{outline:4px solid var(--amber);outline-offset:2px}
+main{max-width:46rem;margin:0 auto;padding:.8rem}
+#mapa{height:42vh;min-height:280px;border:3px solid var(--navy);border-radius:14px}
+[role=tablist]{display:flex;gap:.5rem;margin:.8rem 0}
+[role=tab]{flex:1}[role=tab][aria-selected=true]{background:var(--navy);color:#fff}
+.panel{background:#fff;border:2px solid var(--line);border-radius:14px;padding:1rem;display:grid;gap:.8rem}
+.panel[hidden]{display:none}
+label{font-weight:700;display:block;margin-bottom:.2rem}
+.row{display:flex;gap:.5rem}.row>*{flex:1}.row>button:last-child{flex:0 0 auto}
+#sugg{list-style:none;margin:0;padding:0;display:grid;gap:.4rem}
+#sugg button{width:100%;text-align:left;font-weight:400}
+.status{min-height:1.5rem;font-weight:700;color:var(--navy)}
+.err{color:var(--red)}
+#res{border-left:10px solid var(--line);padding-left:.8rem}
+#res.ok{border-color:var(--green)}#res.mid{border-color:var(--amber)}#res.bad{border-color:var(--red)}#res.unk{border-color:#6b7c78}
+.score{font-size:2.4rem;font-weight:700;line-height:1}
+.ok .lab{color:var(--green)}.mid .lab{color:var(--amber)}.bad .lab{color:var(--red)}
+.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;text-align:center}
+.facts div{background:var(--paper);border-radius:10px;padding:.4rem}.facts b{display:block;font-size:1.1rem}
+.facts span,.small{font-size:.8rem;color:#33464a}
+ul.iss,ol.steps{margin:.3rem 0;padding-left:1.2rem}ul.iss li{margin:.3rem 0}
+details summary{font-weight:700;cursor:pointer;min-height:2.5rem}
+.disc{font-size:.8rem;border-top:1px solid var(--line);padding-top:.6rem;color:#33464a}
+.hp{position:absolute;left:-9999px}
+.pin{font-size:22px;text-shadow:0 0 3px #fff,0 0 3px #fff}
+footer{text-align:center;font-size:.8rem;padding:1rem;color:#33464a}footer a{color:var(--navy)}
+@media (prefers-reduced-motion:no-preference){button{transition:background .15s}}
+.chips{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.4rem}.chip{display:inline-flex;border:2px solid var(--line);border-radius:999px;overflow:hidden}.chip button{border:0;min-height:2.4rem;border-radius:0;font-weight:400;padding:.2rem .7rem}
+#alts{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.6rem}#alts:empty{display:none}#alts button[aria-pressed=true]{background:var(--navy);color:#fff}
+#nav{position:sticky;top:0;z-index:1000;background:var(--navy);color:#fff;border-radius:14px;padding:.8rem;margin:.6rem 0}#nav[hidden]{display:none}#navTxt{font-size:1.25rem;font-weight:700}#nav button{margin-top:.4rem}
+.acts{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.6rem}.acts button.main{width:auto;flex:1 1 100%}
+.checks{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}.checks label{font-weight:400;display:flex;gap:.5rem;align-items:center}.checks input{width:1.3rem;height:1.3rem}
+</style>
+</head>
+<body>
+<header>
+  <img src="icons/icon-192.png" alt="" width="46" height="46">
+  <h1>Palafrugell Accessible<small data-i="sub"></small></h1>
+  <div class="tools">
+    <button id="fMinus" aria-label="A−" title="A−">A−</button><button id="fPlus" aria-label="A+" title="A+">A+</button>
+    <label for="lang" class="hp">Idioma</label>
+    <select id="lang"><option value="ca">Català</option><option value="es">Español</option><option value="en">English</option><option value="fr">Français</option></select>
+  </div>
+</header>
+<main>
+  <div id="mapa" role="application" aria-label="Mapa"></div>
+  <div id="nav" hidden role="region" aria-live="polite"><div id="navTxt"></div><div id="navLeft"></div><div id="navWarn" style="font-weight:700"></div>
+    <label style="font-weight:400"><input type="checkbox" id="voice" style="width:1.2rem;height:1.2rem"> <span data-i="voice"></span></label>
+    <button id="btnStop" data-i="navStop"></button></div>
+  <div role="tablist" aria-label="Menú">
+    <button role="tab" id="tabR" aria-selected="true" aria-controls="pR" data-i="tabR"></button>
+    <button role="tab" id="tabA" aria-selected="false" aria-controls="pA" data-i="tabA"></button>
+    <button role="tab" id="tabP" aria-selected="false" aria-controls="pP" data-i="tabP"></button>
+  </div>
+
+  <section id="pR" class="panel" role="tabpanel" aria-labelledby="tabR">
+    <div>
+      <label for="prof" data-i="prof"></label>
+      <select id="prof"><option value="wheel" data-i="pWheel"></option><option value="elec" data-i="pElec"></option><option value="walk" data-i="pWalk"></option><option value="stroller" data-i="pStr"></option></select>
+    </div>
+    <div>
+      <label for="from" data-i="from"></label>
+      <div class="row"><input type="text" id="from" autocomplete="off" data-ph="fromPh"><button id="btnGps" data-i="gps"></button></div>
+    </div>
+    <div>
+      <label for="to" data-i="to"></label>
+      <input type="text" id="to" autocomplete="off" data-ph="toPh" enterkeyhint="search">
+      <div id="chips" class="chips"></div>
+    </div>
+    <button class="main" id="btnGo" data-i="go"></button>
+    <ul id="sugg" aria-label="Resultats"></ul>
+    <p class="status" id="status" role="status" aria-live="polite"></p>
+    <div id="res" hidden>
+      <div id="alts" role="group"></div>
+      <div class="lab"><span class="score" id="score"></span> <b id="label"></b></div>
+      <p class="small" id="conf"></p>
+      <div class="facts"><div><b id="dist"></b><span data-i="dist"></span></div><div><b id="time"></b><span data-i="time"></span></div><div><b id="maxg"></b><span data-i="slope"></span></div></div>
+      <h2 style="font-size:1.05rem;margin:.8rem 0 0" data-i="issues"></h2>
+      <ul class="iss" id="issues"></ul>
+      <details><summary data-i="steps"></summary><ol class="steps" id="steps"></ol></details>
+      <div class="acts"><button class="main" id="btnNav" data-i="nav"></button><button id="btnFav" data-i="fav"></button><button id="btnShare" data-i="share"></button></div>
+    </div>
+    <p class="disc" data-i="disc"></p>
+  </section>
+
+  <section id="pA" class="panel" role="tabpanel" aria-labelledby="tabA" hidden>
+    <form id="fr" action="https://formspree.io/f/xkoaejkz" method="POST" enctype="multipart/form-data" style="display:grid;gap:.8rem">
+      <p class="small" data-i="rHelp"></p>
+      <input type="text" name="_gotcha" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <input type="hidden" name="lat" id="rLat"><input type="hidden" name="lon" id="rLon">
+      <div><label for="rStreet" data-i="street"></label><input type="text" id="rStreet" name="calle" required></div>
+      <div><label for="rType" data-i="problem"></label>
+        <select id="rType" name="problema"><option value="obras" data-i="o1"></option><option value="bache" data-i="o2"></option><option value="pendiente" data-i="o3"></option><option value="estrecho" data-i="o4"></option><option value="escalon" data-i="o5"></option></select></div>
+      <div><label for="rNote" data-i="note"></label><textarea id="rNote" name="nota" rows="2" maxlength="400"></textarea></div>
+      <div><label for="rPhoto" data-i="photo"></label><input type="file" id="rPhoto" accept="image/*"><span class="small" data-i="photoN"></span></div>
+      <p class="status" id="rPos"></p>
+      <label style="display:flex;gap:.6rem;font-weight:400"><input type="checkbox" id="rOk" required style="width:1.4rem;height:1.4rem;flex:none"><span><span data-i="consent"></span> <a href="privacy.html" target="_blank" rel="noopener" data-i="privLink"></a></span></label>
+      <button class="main" id="rSend" type="submit" data-i="send"></button>
+      <p class="status" id="rStatus" role="status" aria-live="polite"></p>
+    </form>
+  </section>
+  <section id="pP" class="panel" role="tabpanel" aria-labelledby="tabP" hidden>
+    <p class="small" data-i="pHelp"></p>
+    <div class="checks">
+      <label><input type="checkbox" class="poi" value="wc" checked> <span data-i="cWc"></span></label>
+      <label><input type="checkbox" class="poi" value="pk" checked> <span data-i="cPk"></span></label>
+      <label><input type="checkbox" class="poi" value="bn"> <span data-i="cBn"></span></label>
+      <label><input type="checkbox" class="poi" value="wt"> <span data-i="cWt"></span></label>
+      <label><input type="checkbox" class="poi" value="ph"> <span data-i="cPh"></span></label>
+      <label><input type="checkbox" class="poi" value="hl"> <span data-i="cHl"></span></label>
+    </div>
+    <button class="main" id="pShow" data-i="pShow"></button>
+    <p class="status" id="pStatus" role="status" aria-live="polite"></p>
+  </section>
+</main>
+<footer>© 2026 Palafrugell Accessible · <a href="privacy.html" data-i="privLink"></a> · <a href="https://www.openstreetmap.org/copyright" rel="noopener">© OpenStreetMap</a></footer>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script src="features.js"></script>
+</body>
+</html>
