@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.supabase.co https://nominatim.openstreetmap.org; object-src 'none'; base-uri 'self'; form-action 'none'; frame-src 'none'">
+<title>Moderació · Palafrugell Accessible</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font:18px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:#fbf7ef;color:#14202e}
+main{max-width:46rem;margin:auto;padding:1rem}h1{color:#2a4a45;font-size:1.4rem;margin:.2rem 0 1rem}
+label{display:block;font-weight:700;margin:.6rem 0 .2rem}input,select,textarea{font:inherit;width:100%;border:2px solid #6b7c78;border-radius:10px;padding:.6rem;background:#fff}
+button{font:inherit;font-weight:700;cursor:pointer;border-radius:12px;border:2px solid #2a4a45;background:#fff;color:#2a4a45;min-height:3rem;padding:.3rem 1rem}
+button.main,button.ok{background:#0e7c78;border-color:#0e7c78;color:#fff}button.no{border-color:#b3261e;color:#b3261e}
+:focus-visible{outline:4px solid #e9a21f;outline-offset:2px}
+.bar{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin:.6rem 0}.bar>*{flex:0 1 auto}.bar label{margin:0}
+[role=tab][aria-selected=true]{background:#2a4a45;color:#fff}
+.card{background:#fff;border:2px solid #cfe0d9;border-radius:14px;padding:.8rem 1rem;margin:.8rem 0}.card h2{font-size:1.05rem;margin:0 0 .3rem}
+.meta{font-size:.85rem;color:#33464a}.warn{color:#965800;font-weight:700}.err{color:#b3261e;font-weight:700}.good{color:#267336;font-weight:700}
+.acts{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.6rem}.acts button{min-height:2.7rem}
+code{background:#eef3f1;padding:.1rem .3rem;border-radius:6px;font-size:.85rem;word-break:break-all}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<script src="config.js"></script>
+<main>
+<h1>🛡️ Moderació · Palafrugell Accessible</h1>
+
+<section id="login">
+  <p>Entra amb el compte d'administrador que has creat a Supabase (Authentication → Users).</p>
+  <form id="lf">
+    <label for="em">Correu</label><input id="em" type="email" autocomplete="username" required>
+    <label for="pw">Contrasenya</label><input id="pw" type="password" autocomplete="current-password" required>
+    <div class="acts"><button class="main" type="submit">Entrar</button></div>
+    <p id="le" class="err" role="alert"></p>
+  </form>
+</section>
+
+<section id="app" hidden>
+  <div class="bar"><div id="tabs" role="tablist" class="bar" aria-label="Seccions"></div><button id="out">Tancar sessió</button></div>
+  <div id="filter" class="bar"><label for="st">Mostrar</label><select id="st"></select><button id="rl">🔄 Actualitzar</button></div>
+  <p id="msg" role="status" aria-live="polite"></p>
+  <div id="list"></div>
+
+  <form id="of" hidden>
+    <p class="meta">Publica una obra o un tall <b>confirmat</b> (bàndol, web de l'Ajuntament, avís a peu de carrer). Sortirà al mapa i les rutes l'evitaran fins a la data que posis.</p>
+    <label for="oq">Cerca el lloc (Palafrugell)</label>
+    <div class="bar"><input id="oq" placeholder="Ex: Carrer Cavallers" style="flex:1 1 12rem"><button type="button" id="os">🔍 Cercar</button></div>
+    <div id="or" class="acts"></div>
+    <div class="bar"><div style="flex:1 1 8rem"><label for="olat">Latitud</label><input id="olat" type="number" step="any" required></div><div style="flex:1 1 8rem"><label for="olon">Longitud</label><input id="olon" type="number" step="any" required></div></div>
+    <label for="ost">Carrer o lloc</label><input id="ost" maxlength="120">
+    <label for="oty">Tipus</label><select id="oty"><option value="obras">🚧 Obres (cal anar amb compte)</option><option value="corte">⛔ Tram tallat (no es pot passar)</option></select>
+    <label for="oun">Vigent fins al dia</label><input id="oun" type="date" required>
+    <label for="ono">Font i detalls (obligatori)</label><textarea id="ono" rows="3" maxlength="400" required placeholder="Ex: Bàndol de l'Ajuntament del 12/11. Voral tallat entre els números 10 i 20."></textarea>
+    <div class="acts"><button class="main" type="submit">Publicar alerta oficial</button></div>
+  </form>
+</section>
+</main>
+<script>
+const C = window.CFG || {}, U = C.SUPABASE_URL, K = C.SUPABASE_KEY, $ = s => document.querySelector(s);
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+let tok = null; try { tok = JSON.parse(sessionStorage.getItem('adm') || 'null'); } catch (e) {}
+const TYPE = { obras: '🚧 Obres', bache: '🕳️ Forat o rajoles', pendiente: '⛰️ Pendent', estrecho: '↔️ Vorera estreta', escalon: '🪜 Escaló', corte: '⛔ Tram tallat' };
+const KIND = { wc: ['🚻', 'Lavabo', 'amenity=toilets'], pk: ['🅿️', 'Aparcament PMR', 'amenity=parking_space + parking_space=disabled'], bn: ['🪑', 'Banc', 'amenity=bench'], wt: ['🚰', 'Font', 'amenity=drinking_water'], ph: ['💊', 'Farmàcia', 'amenity=pharmacy'], hl: ['🏥', 'Salut', 'amenity=clinic'] };
+const FB = { place_ok: '✅ Confirma que el lloc hi és', place_wrong: '⚠️ Diu que hi ha un error', place_closed: '🔒 Diu que està tancat', error: '⚠️ Una dada és incorrecta', idea: '💡 Idea o suggeriment', other: '💬 Altres' };
+const VIEWS = {
+  reports: { label: 'Avisos de trams', st: [['pending', 'Pendents'], ['approved', 'Aprovats'], ['rejected', 'Rebutjats']], edit: 'street' },
+  places: { label: 'Llocs útils', st: [['pending', 'Pendents'], ['approved', 'Aprovats'], ['rejected', 'Rebutjats']], edit: 'name' },
+  feedback: { label: 'Missatges i vots', st: [['new', 'Nous'], ['read', 'Llegits'], ['done', 'Fets']] },
+  official: { label: '🏛️ Alerta oficial' }
+};
+let view = 'reports', approved = [];
+
+/* ---------- sessió ---------- */
+async function authCall(body, grant) {
+  const r = await fetch(`${U}/auth/v1/token?grant_type=${grant}`, { method: 'POST', headers: { apikey: K, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error_description || j.msg || j.message || 'Error ' + r.status);
+  tok = { a: j.access_token, r: j.refresh_token }; sessionStorage.setItem('adm', JSON.stringify(tok));
+}
+function logout() { tok = null; sessionStorage.removeItem('adm'); $('#app').hidden = true; $('#login').hidden = false; }
+const hdr = () => ({ apikey: K, 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok.a });   // el JWT de l'usuari, no la clau pública
+async function api(path, opt = {}) {
+  const go = () => fetch(`${U}/rest/v1/${path}`, { ...opt, headers: { ...hdr(), ...(opt.headers || {}) } });
+  let r = await go();
+  if (r.status === 401 && tok && tok.r) { try { await authCall({ refresh_token: tok.r }, 'refresh_token'); r = await go(); } catch (e) { logout(); throw new Error('La sessió ha caducat. Torna a entrar.'); } }
+  if (!r.ok) throw new Error(((await r.text().catch(() => '')) || 'Error ' + r.status).slice(0, 200));
+  return r;
+}
+const say = (m, cls) => { const p = $('#msg'); p.textContent = m || ''; p.className = cls || ''; };
+$('#lf').addEventListener('submit', async e => {
+  e.preventDefault(); $('#le').textContent = '';
+  if (!U || !K) { $('#le').textContent = 'Falta la configuració de Supabase (config.js).'; return; }
+  try { await authCall({ email: $('#em').value.trim(), password: $('#pw').value }, 'password'); $('#pw').value = ''; start(); }
+  catch (x) { $('#le').textContent = 'No s\'ha pogut entrar: ' + x.message; }
+});
+$('#out').onclick = logout;
+
+/* ---------- pantalla ---------- */
+async function pendingCount(v) { try { const s = VIEWS[v].st[0][0]; return (await (await api(`${v}?status=eq.${s}&select=id&limit=200`)).json()).length; } catch (e) { return null; } }
+async function drawTabs() {
+  const box = $('#tabs'); box.replaceChildren();
+  for (const v of Object.keys(VIEWS)) {
+    const b = el('button', '', VIEWS[v].label); b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', v === view); b.onclick = () => { view = v; show(); };
+    box.append(b); if (v !== 'official') pendingCount(v).then(n => { if (n) b.textContent = VIEWS[v].label + ' (' + n + ')'; });
+  }
+}
+function show() {
+  drawTabs(); const off = view === 'official';
+  $('#of').hidden = !off; $('#filter').hidden = off; $('#list').replaceChildren(); say('');
+  if (off) return;
+  const s = $('#st'); s.replaceChildren(); VIEWS[view].st.forEach(([v, l]) => s.append(new Option(l, v)));
+  load();
+}
+function start() { $('#login').hidden = true; $('#app').hidden = false; $('#oun').min = new Date().toISOString().slice(0, 10); show(); }
+$('#st').onchange = load; $('#rl').onclick = load;
+
+async function load() {
+  const v = view, st = $('#st').value; say('Carregant…'); $('#list').replaceChildren();
+  try {
+    if (v === 'places' && !approved.length) approved = await (await api('places?status=eq.approved&select=id,kind,lat,lon,name&limit=1000')).json();
+    const rows = await (await api(`${v}?status=eq.${st}&order=created_at.desc&limit=200&select=*`)).json();
+    say(rows.length ? rows.length + ' elements' : 'No hi ha res en aquesta llista.');
+    rows.forEach(r => $('#list').append(card(v, st, r)));
+  } catch (x) { say(x.message, 'err'); }
+}
+const dist = (a, b, c, d) => { const R = 6371000, p = Math.PI / 180, x = Math.sin((c - a) * p / 2) ** 2 + Math.cos(a * p) * Math.cos(c * p) * Math.sin((d - b) * p / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); };
+function card(v, st, r) {
+  const c = el('div', 'card'), h = el('h2'), meta = el('div', 'meta'); let input = null;
+  if (v === 'reports') h.textContent = (TYPE[r.type] || r.type) + (r.source === 'official' ? ' · 🏛️ oficial' : '');
+  else if (v === 'places') { const k = KIND[r.kind] || ['📍', r.kind, '']; h.textContent = k[0] + ' ' + k[1]; }
+  else h.textContent = FB[r.kind] || r.kind;
+  c.append(h);
+  const info = (t, cls) => { const d = el('div', cls || '', t); c.append(d); return d; };
+  if (v === 'places') info('Accés cadira de rodes: ' + (r.wheelchair || 'desconegut') + (r.hours ? ' · Horari: ' + r.hours : ''));
+  if (v === 'reports' && (r.note || r.until)) info((r.note || '') + (r.until ? ' · vigent fins al ' + r.until : ''));
+  if (v === 'feedback') { if (r.text) info(r.text); if (r.ref) info('Ref: ' + r.ref, 'meta'); }
+  const ed = VIEWS[v].edit;
+  if (ed) { const l = el('label', '', ed === 'street' ? 'Carrer (pots corregir-lo)' : 'Nom (pots corregir-lo)'); input = el('input'); input.value = r[ed] || ''; input.maxLength = 120; input.id = 'f' + r.id + v; l.htmlFor = input.id; c.append(l, input); }
+  if (v === 'places') { const near = approved.find(p => p.id !== r.id && p.kind === r.kind && dist(p.lat, p.lon, r.lat, r.lon) < 25); if (near) info('⚠️ Possible duplicat: ja hi ha un lloc aprovat del mateix tipus a ' + Math.round(dist(near.lat, near.lon, r.lat, r.lon)) + ' m' + (near.name ? ' («' + near.name + '»)' : ''), 'warn'); }
+  if (r.lat != null) { meta.append((r.created_at || '').slice(0, 10) + ' · '); const a = el('a', '', r.lat.toFixed(5) + ', ' + r.lon.toFixed(5)); a.href = `https://www.openstreetmap.org/?mlat=${r.lat}&mlon=${r.lon}#map=19/${r.lat}/${r.lon}`; a.target = '_blank'; a.rel = 'noopener'; meta.append(a); } else meta.textContent = (r.created_at || '').slice(0, 10);
+  c.append(meta);
+  if (v === 'places' && KIND[r.kind]) { const t = KIND[r.kind][2] + (r.wheelchair === 'yes' || r.wheelchair === 'no' ? ' wheelchair=' + r.wheelchair : '') + (r.name ? ' name=' + r.name : ''), d = el('div', 'meta'); d.append('OpenStreetMap: ', el('code', '', t)); c.append(d); }
+  const acts = el('div', 'acts'), act = (label, cls, fn) => { const b = el('button', cls, label); b.onclick = async () => { b.disabled = true; try { await fn(); c.remove(); say('Fet.', 'good'); drawTabs(); } catch (x) { b.disabled = false; say(x.message, 'err'); } }; acts.append(b); };
+  const patch = body => api(`${v}?id=eq.${r.id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(body) });
+  const edited = () => (input && input.value.trim() !== (r[ed] || '') ? { [ed]: input.value.trim() || null } : {});
+  if (v === 'feedback') { if (st === 'new') act('👁 Llegit', '', () => patch({ status: 'read' })); if (st !== 'done') act('✅ Fet', 'ok', () => patch({ status: 'done' })); }
+  else { if (st !== 'approved') act('✅ Aprovar', 'ok', () => patch({ status: 'approved', ...edited() })); if (st === 'pending') act('❌ Rebutjar', 'no', () => patch({ status: 'rejected' })); if (st === 'approved') act('↩️ Retirar del mapa', 'no', () => patch({ status: 'rejected' })); }
+  act('🗑 Esborrar', 'no', async () => { if (!confirm('Esborrar definitivament?')) throw new Error('Cancel·lat'); await api(`${v}?id=eq.${r.id}`, { method: 'DELETE', headers: { Prefer: 'return=minimal' } }); });
+  c.append(acts); return c;
+}
+
+/* ---------- alertes oficials ---------- */
+$('#os').onclick = async () => {
+  const q = $('#oq').value.trim(), box = $('#or'); box.replaceChildren(); if (!q) return;
+  try {
+    const r = await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&countrycodes=es&viewbox=3.10,41.95,3.25,41.88&bounded=1&q=' + encodeURIComponent(q)), j = await r.json();
+    if (!j.length) { say('No s\'ha trobat. Prova un altre text o posa les coordenades a mà.', 'err'); return; }
+    say(''); j.forEach(x => { const b = el('button', '', '📍 ' + x.display_name.split(',').slice(0, 2).join(',')); b.type = 'button'; b.onclick = () => { $('#olat').value = (+x.lat).toFixed(6); $('#olon').value = (+x.lon).toFixed(6); if (!$('#ost').value) $('#ost').value = x.display_name.split(',')[0]; box.replaceChildren(); }; box.append(b); });
+  } catch (x) { say('No s\'ha pogut cercar.', 'err'); }
+};
+$('#of').addEventListener('submit', async e => {
+  e.preventDefault(); const lat = parseFloat($('#olat').value), lon = parseFloat($('#olon').value);
+  if (isNaN(lat) || isNaN(lon)) { say('Falten les coordenades.', 'err'); return; }
+  try {
+    await api('reports', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ lat, lon, street: $('#ost').value.trim() || null, type: $('#oty').value, note: $('#ono').value.trim(), until: $('#oun').value, status: 'approved', source: 'official' }) });
+    say('✅ Alerta oficial publicada. Ja surt al mapa i les rutes l\'eviten fins al ' + $('#oun').value + '.', 'good'); e.target.reset(); $('#or').replaceChildren();
+  } catch (x) { say(x.message, 'err'); }
+});
+if (tok && U && K) start();
+</script>
+</body>
+</html>
